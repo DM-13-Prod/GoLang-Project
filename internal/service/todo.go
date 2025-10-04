@@ -10,8 +10,9 @@ import (
 )
 
 type Service struct {
-	store *storage.JSONStore
-	tasks map[model.ID]*model.Task
+	store  *storage.JSONStore
+	tasks  map[model.ID]*model.Task
+	nextID model.ID
 }
 
 func New(store *storage.JSONStore) (*Service, error) {
@@ -30,12 +31,21 @@ func (s *Service) load() error {
 	if err != nil {
 		return err
 	}
+	var maxID model.ID = 0
 	for _, r := range records {
 		t, err := model.FromDTO(r)
 		if err != nil {
 			continue
 		}
 		s.tasks[t.ID()] = t
+		if t.ID() > maxID {
+			maxID = t.ID()
+		}
+	}
+	if maxID < 1 {
+		s.nextID = 1
+	} else {
+		s.nextID = maxID + 1
 	}
 	return nil
 }
@@ -60,8 +70,26 @@ func (s *Service) Add(title, desc string, p model.Priority, due *time.Time) (mod
 	if due != nil {
 		t.SetDueAt(*due)
 	}
+	t.SetID(s.nextID)
 	s.tasks[t.ID()] = t
+	s.nextID++
 	return t.ID(), s.persist()
+}
+
+
+// RenumberIDs — перенумеровывает все задачи в порядке CreatedAt: 1..N
+func (s *Service) RenumberIDs() error {
+	list := s.List(nil) // уже отсортировано по CreatedAt
+	newMap := make(map[model.ID]*model.Task, len(list))
+	var id model.ID = 1
+	for _, t := range list {
+		t.SetID(id)
+		newMap[id] = t
+		id++
+	}
+	s.tasks = newMap
+	s.nextID = id
+	return s.persist()
 }
 
 func (s *Service) List(filter *model.Status) []*model.Task {

@@ -68,7 +68,7 @@ func NewTask(title, description string) (*Task, error) {
 	}
 	now := time.Now()
 	return &Task{
-		id:          ID(now.UnixNano()),
+		// id назначается на уровне сервиса
 		title:       title,
 		description: strings.TrimSpace(description),
 		status:      StatusNew,
@@ -78,6 +78,11 @@ func NewTask(title, description string) (*Task, error) {
 			updatedAt: now,
 		},
 	}, nil
+}
+
+// SetID — используется сервисом для назначения/перенумерации ID
+func (t *Task) SetID(id ID) {
+	t.id = id
 }
 
 // Геттеры
