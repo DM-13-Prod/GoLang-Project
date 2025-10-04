@@ -39,6 +39,7 @@ func main() {
 		fmt.Println("8) Удалить задачу")
 		fmt.Println("9) Выход")
 		fmt.Println("10) Перенумеровать ID (1..N)")
+		fmt.Println("11) Показать задачу")
 		fmt.Print("Выбор: ")
 
 		choice := readLine(in)
@@ -81,12 +82,46 @@ func main() {
 		fmt.Println("OK: ID перенумерованы")
 		printTasks(svc.List(nil))
 	}
-	continue
-	
+
+	case "11":
+    id, ok := askID(in)
+    if !ok {
+        break
+    }
+    // без изменения сервиса — просто ищем в списке:
+    var found *model.Task
+    for _, t := range svc.List(nil) {
+        if t.ID() == id {
+            found = t
+            break
+        }
+    }
+    if found == nil {
+        fmt.Println("не найдено")
+        break
+    }
+    printTaskDetails(found)
+
 		default:
 			fmt.Println("неизвестная команда")
 		}
 	}
+}
+
+
+func printTaskDetails(t *model.Task) {
+	due := "-"
+	if d := t.DueAt(); d != nil {
+		due = d.Format("02-01-2006")
+	}
+	fmt.Printf("Title: %s\n", t.Title())
+	fmt.Printf("Status: %s\n", t.Status())
+	fmt.Printf("Priority: %s\n", prioText(t.Priority()))
+	fmt.Printf("Created: %s\n", t.CreatedAt().Format("2006-01-02 15:04"))
+	fmt.Printf("Updated: %s\n", t.UpdatedAt().Format("2006-01-02 15:04"))
+	fmt.Printf("Due: %s\n", due)
+	fmt.Println("Description:")
+	fmt.Println(t.Description())
 }
 
 func handleAdd(in *bufio.Scanner, svc *service.Service) {
@@ -102,15 +137,15 @@ func handleAdd(in *bufio.Scanner, svc *service.Service) {
 	p := askPriority(in)
 
 	var due *time.Time
-	fmt.Print("Дедлайн YYYY-MM-DD (пусто - без срока): ")
-	if s := strings.TrimSpace(readLine(in)); s != "" {
-		d, err := time.Parse("2006-01-02", s)
-		if err != nil {
-			fmt.Println("дата некорректна, пропущено")
-		} else {
-			due = &d
+	fmt.Print("Дедлайн (DD-MM-YYYY, можно DDMMYYYY или DD.MM.YYYY; пусто — без срока): ")
+		if s := strings.TrimSpace(readLine(in)); s != "" {
+			d, err := parseDMYDate(s)
+			if err != nil {
+				fmt.Println("дата некорректна, пропущено:", err)
+			} else {
+				due = &d
+			}
 		}
-	}
 
 	id, err := svc.Add(title, desc, p, due)
 	if err != nil {
@@ -179,27 +214,27 @@ func handleDue(in *bufio.Scanner, svc *service.Service) {
 	if !ok {
 		return
 	}
-	fmt.Print("Установить дату (YYYY-MM-DD) или пусто чтобы очистить: ")
-	raw := strings.TrimSpace(readLine(in))
-	if raw == "" {
-		if err := svc.ClearDue(id); err != nil {
-			fmt.Println("ошибка:", err)
-		} else {
-			fmt.Println("OK (очищено)")
+	fmt.Print("Установить дату (DD-MM-YYYY, можно DDMMYYYY или DD.MM.YYYY) или пусто чтобы очистить: ")
+		raw := strings.TrimSpace(readLine(in))
+		if raw == "" {
+			if err := svc.ClearDue(id); err != nil {
+				fmt.Println("ошибка:", err)
+			} else {
+				fmt.Println("OK (очищено)")
+			}
+			return
 		}
-		return
-	}
-	d, err := time.Parse("2006-01-02", raw)
-	if err != nil {
-		fmt.Println("дата некорректна")
-		return
-	}
-	if err := svc.SetDue(id, d); err != nil {
-		fmt.Println("ошибка:", err)
-		return
-	}
-	fmt.Println("OK")
-}
+		d, err := parseDMYDate(raw)
+		if err != nil {
+			fmt.Println("дата некорректна:", err)
+			return
+		}
+		if err := svc.SetDue(id, d); err != nil {
+			fmt.Println("ошибка:", err)
+			return
+		}
+		fmt.Println("OK")
+		}
 
 func handleDelete(in *bufio.Scanner, svc *service.Service) {
 	id, ok := askID(in)
@@ -276,18 +311,93 @@ func printTasks(list []*model.Task) {
 		fmt.Println("(пусто)")
 		return
 	}
-	fmt.Println("ID | Title | Status | Priority | Created | Due")
+	fmt.Println("ID | Title | Status | Prio | Created | Due | Desc")
 	for _, t := range list {
 		due := "-"
 		if d := t.DueAt(); d != nil {
-			due = d.Format("2006-01-02")
+		due = d.Format("02-01-2006") // DD-MM-YYYY
 		}
-		fmt.Printf("%d | %s | %s | %d | %s | %s\n",
-			t.ID(), t.Title(), t.Status(), t.Priority(),
+		desc := trunc(t.Description(), 40) // укоротим до 40 символов
+		fmt.Printf("%d | %s | %s | %s | %s | %s | %s\n",
+			t.ID(), t.Title(), t.Status(), prioText(t.Priority()),
 			t.CreatedAt().Format("2006-01-02 15:04"),
-			due,
+			due, desc,
 		)
 	}
+}
+
+func trunc(s string, n int) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "-"
+	}
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n-1]) + "…"
+}
+
+func prioText(p model.Priority) string {
+	switch p {
+	case model.PriorityLow:
+		return "low"
+	case model.PriorityHigh:
+		return "high"
+	default:
+		return "medium"
+	}
+}
+
+// parseDMYDate принимает DD-MM-YYYY, DDMMYYYY, DD.MM.YYYY и возвращает дату (локальную) на 00:00
+func parseDMYDate(input string) (time.Time, error) {
+	s := strings.TrimSpace(input)
+	if s == "" {
+		return time.Time{}, fmt.Errorf("пустая дата")
+	}
+
+	// Вариант без разделителей: DDMMYYYY
+	digits := make([]rune, 0, len(s))
+	for _, ch := range s {
+		if ch >= '0' && ch <= '9' {
+			digits = append(digits, ch)
+		}
+	}
+	if len(digits) == 8 { // DDMMYYYY
+		day, err1 := strconv.Atoi(string(digits[0:2]))
+		month, err2 := strconv.Atoi(string(digits[2:4]))
+		year, err3 := strconv.Atoi(string(digits[4:8]))
+		if err1 != nil || err2 != nil || err3 != nil {
+			return time.Time{}, fmt.Errorf("не удалось разобрать дату")
+		}
+		return makeDateChecked(year, month, day)
+	}
+
+	// Варианты с разделителями: DD-MM-YYYY или DD.MM.YYYY
+	s = strings.ReplaceAll(s, ".", "-")
+	parts := strings.Split(s, "-")
+	if len(parts) != 3 {
+		return time.Time{}, fmt.Errorf("используйте DD-MM-YYYY, DDMMYYYY или DD.MM.YYYY")
+	}
+	day, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+	month, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+	year, err3 := strconv.Atoi(strings.TrimSpace(parts[2]))
+	if err1 != nil || err2 != nil || err3 != nil {
+		return time.Time{}, fmt.Errorf("не удалось разобрать дату")
+	}
+	if len(parts[2]) != 4 {
+		return time.Time{}, fmt.Errorf("год должен быть в формате YYYY")
+	}
+	return makeDateChecked(year, month, day)
+}
+
+// makeDateChecked создаёт дату 00:00 в локальной зоне и валидирует корректность (например, отсекает 31-02-2025)
+func makeDateChecked(year, month, day int) (time.Time, error) {
+	t := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
+	if t.Year() != year || int(t.Month()) != month || t.Day() != day {
+		return time.Time{}, fmt.Errorf("некорректная дата")
+	}
+	return t, nil
 }
 
 func readLine(in *bufio.Scanner) string {
