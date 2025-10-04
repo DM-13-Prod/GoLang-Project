@@ -38,6 +38,7 @@ func main() {
 		fmt.Println("7) Установить/очистить срок (due)")
 		fmt.Println("8) Удалить задачу")
 		fmt.Println("9) Выход")
+		fmt.Println("10) Перенумеровать ID (1..N)")
 		fmt.Print("Выбор: ")
 
 		choice := readLine(in)
@@ -66,6 +67,22 @@ func main() {
 		case "9":
 			fmt.Println("Пока!")
 			return
+
+		case "10":
+	fmt.Print("Перенумеровать все ID в 1..N? (y/N): ")
+	ans := strings.ToLower(strings.TrimSpace(readLine(in)))
+	if ans != "y" && ans != "yes" {
+		fmt.Println("отмена")
+		break
+	}
+	if err := svc.RenumberIDs(); err != nil {
+		fmt.Println("ошибка:", err)
+	} else {
+		fmt.Println("OK: ID перенумерованы")
+		printTasks(svc.List(nil))
+	}
+	continue
+	
 		default:
 			fmt.Println("неизвестная команда")
 		}
