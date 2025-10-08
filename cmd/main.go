@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"copybook/internal/model"
-	"copybook/internal/service"
-	"copybook/internal/storage"
+	"cmd/internal/model"
+	"cmd/internal/service"
+	"cmd/internal/storage"
 )
 
 func main() {
@@ -70,44 +70,43 @@ func main() {
 			return
 
 		case "10":
-	fmt.Print("Перенумеровать все ID в 1..N? (y/N): ")
-	ans := strings.ToLower(strings.TrimSpace(readLine(in)))
-	if ans != "y" && ans != "yes" {
-		fmt.Println("отмена")
-		break
-	}
-	if err := svc.RenumberIDs(); err != nil {
-		fmt.Println("ошибка:", err)
-	} else {
-		fmt.Println("OK: ID перенумерованы")
-		printTasks(svc.List(nil))
-	}
+			fmt.Print("Перенумеровать все ID в 1..N? (y/N): ")
+			ans := strings.ToLower(strings.TrimSpace(readLine(in)))
+			if ans != "y" && ans != "yes" {
+				fmt.Println("отмена")
+				break
+			}
+			if err := svc.RenumberIDs(); err != nil {
+				fmt.Println("ошибка:", err)
+			} else {
+				fmt.Println("OK: ID перенумерованы")
+				printTasks(svc.List(nil))
+			}
 
-	case "11":
-    id, ok := askID(in)
-    if !ok {
-        break
-    }
-    // без изменения сервиса — просто ищем в списке:
-    var found *model.Task
-    for _, t := range svc.List(nil) {
-        if t.ID() == id {
-            found = t
-            break
-        }
-    }
-    if found == nil {
-        fmt.Println("не найдено")
-        break
-    }
-    printTaskDetails(found)
+		case "11":
+			id, ok := askID(in)
+			if !ok {
+				break
+			}
+			// без изменения сервиса — просто ищем в списке:
+			var found *model.Task
+			for _, t := range svc.List(nil) {
+				if t.ID() == id {
+					found = t
+					break
+				}
+			}
+			if found == nil {
+				fmt.Println("не найдено")
+				break
+			}
+			printTaskDetails(found)
 
 		default:
 			fmt.Println("неизвестная команда")
 		}
 	}
 }
-
 
 func printTaskDetails(t *model.Task) {
 	due := "-"
@@ -138,14 +137,14 @@ func handleAdd(in *bufio.Scanner, svc *service.Service) {
 
 	var due *time.Time
 	fmt.Print("Дедлайн (DD-MM-YYYY, можно DDMMYYYY или DD.MM.YYYY; пусто — без срока): ")
-		if s := strings.TrimSpace(readLine(in)); s != "" {
-			d, err := parseDMYDate(s)
-			if err != nil {
-				fmt.Println("дата некорректна, пропущено:", err)
-			} else {
-				due = &d
-			}
+	if s := strings.TrimSpace(readLine(in)); s != "" {
+		d, err := parseDMYDate(s)
+		if err != nil {
+			fmt.Println("дата некорректна, пропущено:", err)
+		} else {
+			due = &d
 		}
+	}
 
 	id, err := svc.Add(title, desc, p, due)
 	if err != nil {
@@ -215,26 +214,26 @@ func handleDue(in *bufio.Scanner, svc *service.Service) {
 		return
 	}
 	fmt.Print("Установить дату (DD-MM-YYYY, можно DDMMYYYY или DD.MM.YYYY) или пусто чтобы очистить: ")
-		raw := strings.TrimSpace(readLine(in))
-		if raw == "" {
-			if err := svc.ClearDue(id); err != nil {
-				fmt.Println("ошибка:", err)
-			} else {
-				fmt.Println("OK (очищено)")
-			}
-			return
-		}
-		d, err := parseDMYDate(raw)
-		if err != nil {
-			fmt.Println("дата некорректна:", err)
-			return
-		}
-		if err := svc.SetDue(id, d); err != nil {
+	raw := strings.TrimSpace(readLine(in))
+	if raw == "" {
+		if err := svc.ClearDue(id); err != nil {
 			fmt.Println("ошибка:", err)
-			return
+		} else {
+			fmt.Println("OK (очищено)")
 		}
-		fmt.Println("OK")
-		}
+		return
+	}
+	d, err := parseDMYDate(raw)
+	if err != nil {
+		fmt.Println("дата некорректна:", err)
+		return
+	}
+	if err := svc.SetDue(id, d); err != nil {
+		fmt.Println("ошибка:", err)
+		return
+	}
+	fmt.Println("OK")
+}
 
 func handleDelete(in *bufio.Scanner, svc *service.Service) {
 	id, ok := askID(in)
@@ -315,7 +314,7 @@ func printTasks(list []*model.Task) {
 	for _, t := range list {
 		due := "-"
 		if d := t.DueAt(); d != nil {
-		due = d.Format("02-01-2006") // DD-MM-YYYY
+			due = d.Format("02-01-2006") // DD-MM-YYYY
 		}
 		desc := trunc(t.Description(), 40) // укоротим до 40 символов
 		fmt.Printf("%d | %s | %s | %s | %s | %s | %s\n",

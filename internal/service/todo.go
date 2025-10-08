@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"copybook/internal/model"
-	"copybook/internal/storage"
+	"cmd/internal/model"
+	"cmd/internal/storage"
 )
 
 type Service struct {
@@ -75,7 +75,6 @@ func (s *Service) Add(title, desc string, p model.Priority, due *time.Time) (mod
 	s.nextID++
 	return t.ID(), s.persist()
 }
-
 
 // RenumberIDs — перенумеровывает все задачи в порядке CreatedAt: 1..N
 func (s *Service) RenumberIDs() error {

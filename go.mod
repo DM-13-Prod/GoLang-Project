@@ -1,3 +1,3 @@
-module copybook
+module cmd
 
 go 1.25.1
