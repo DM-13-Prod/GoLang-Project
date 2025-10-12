@@ -43,3 +43,89 @@ func DistributeNewTasksPeriodically(interval time.Duration, stop <-chan struct{}
 		}
 	}
 }
+
+func GenerateTasks(out chan<- *model.Task, interval time.Duration, stop <-chan struct{}) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			t, _ := model.NewTask(
+				fmt.Sprintf("ChTask-%d", time.Now().UnixNano()),
+				"создана через канал",
+			)
+			t.SetPriority(model.Priority(rand.Intn(3) + 1))
+			if DebugMode {
+				fmt.Printf("[генератор] → %s (%v)\n", t.Title(), t.Priority())
+			}
+			out <- t
+		case <-stop:
+			fmt.Println("[генератор] остановлен")
+			close(out)
+			return
+		}
+	}
+}
+func DistributeFromChannel(in <-chan *model.Task, stop <-chan struct{}) {
+	for {
+		select {
+		case t, ok := <-in:
+			if !ok {
+				fmt.Println("[канальный дистрибьютор] остановлен (канал закрыт)")
+				return
+			}
+			repository.Distribute(t)
+			if DebugMode {
+				fmt.Printf("[канальный дистрибьютор] принял %s → %v\n",
+					t.Title(), t.Priority())
+			}
+		case <-stop:
+			fmt.Println("[канальный дистрибьютор] остановлен")
+			return
+		}
+	}
+}
+
+// LogTaskAdditions — каждые 200 мс проверяет, не добавили ли чего нового
+func LogTaskAdditions(interval time.Duration, stop <-chan struct{}) {
+    prevLow, prevMed, prevHigh := 0, 0, 0
+    ticker := time.NewTicker(interval)
+    defer ticker.Stop()
+
+    for {
+        select {
+        case <-ticker.C:
+            curLow := len(repository.LowPriorityTasks)
+            curMed := len(repository.MediumPriorityTasks)
+            curHigh := len(repository.HighPriorityTasks)
+
+            if !DebugMode {
+                //просто обновляем счётчики без вывода
+                prevLow, prevMed, prevHigh = curLow, curMed, curHigh
+                continue
+            }
+
+            if curLow > prevLow {
+                diff := curLow - prevLow
+                fmt.Printf("[логгер] добавлено %d низкоприоритетных задач\n", diff)
+                prevLow = curLow
+            }
+            if curMed > prevMed {
+                diff := curMed - prevMed
+                fmt.Printf("[логгер] добавлено %d средних задач\n", diff)
+                prevMed = curMed
+            }
+            if curHigh > prevHigh {
+                diff := curHigh - prevHigh
+                fmt.Printf("[логгер] добавлено %d высокоприоритетных задач\n", diff)
+                prevHigh = curHigh
+            }
+
+        case <-stop:
+            if DebugMode {
+                fmt.Println("[логгер] остановлен")
+            }
+            return
+        }
+    }
+}

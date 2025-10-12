@@ -21,6 +21,7 @@ func main() {
 		storePath = "data/tasks.json"
 	}
 
+
 	svc, err := service.New(storage.NewJSONStore(storePath))
 	if err != nil {
 		fmt.Println("init error:", err)
@@ -28,7 +29,14 @@ func main() {
 	}
 
 	stop := make(chan struct{})
-	go service.DistributeNewTasksPeriodically(10*time.Second, stop)
+	    // Старый авто-дистрибьютор
+    go service.DistributeNewTasksPeriodically(10*time.Second, stop)
+
+    // Новый конкурентный набор
+    ch := make(chan *model.Task, 10)
+    go service.GenerateTasks(ch, 5*time.Second, stop)
+    go service.DistributeFromChannel(ch, stop)
+    go service.LogTaskAdditions(200*time.Millisecond, stop)
 
 	in := bufio.NewScanner(os.Stdin)
 
@@ -343,7 +351,7 @@ func printTasks(list []*model.Task) {
 		if d := t.DueAt(); d != nil {
 			due = d.Format("02-01-2006")
 		}
-		desc := trunc(t.Description(), 40)
+		desc := trunc(t.Description(), 43)
 		fmt.Printf("%d | %s | %s | %s | %s | %s | %s\n",
 			t.ID(), t.Title(), t.Status(), prioText(t.Priority()),
 			t.CreatedAt().Format("2006-01-02 15:04"),
