@@ -2,6 +2,7 @@ package service
 
 import (
 	"cmd/internal/model"
+	"context"
 	"cmd/internal/repository"
 	"fmt"
 	"math/rand"
@@ -12,7 +13,7 @@ var PrintLogs = true // можно включать/выключать подр�
 
 // DistributeNewTasksPeriodically — создаёт задачи (использует бизнес-логику) каждые interval секунд, реализация ДЗ из 12 блока.
 // Делает это пока не придёт сигнал стопа.
-func DistributeNewTasksPeriodically(interval time.Duration, stop <-chan struct{}) {
+func DistributeNewTasksPeriodically(interval time.Duration, ctx context.Context) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -37,14 +38,14 @@ func DistributeNewTasksPeriodically(interval time.Duration, stop <-chan struct{}
 					t.Title(), t.Priority())
 			}
 
-		case <-stop:
+		case <-ctx.Done():
 			fmt.Println("[дистрибьютор] остановлен")
 			return
 		}
 	}
 }
 
-func GenerateTasks(out chan<- *model.Task, interval time.Duration, stop <-chan struct{}) {
+func GenerateTasks(out chan<- *model.Task, interval time.Duration, ctx context.Context) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -59,14 +60,14 @@ func GenerateTasks(out chan<- *model.Task, interval time.Duration, stop <-chan s
 				fmt.Printf("[генератор] → %s (%v)\n", t.Title(), t.Priority())
 			}
 			out <- t
-		case <-stop:
-			fmt.Println("[генератор] остановлен")
+		case <-ctx.Done():
+			fmt.Println("[гeнератор] остановлен")
 			close(out)
 			return
 		}
 	}
 }
-func DistributeFromChannel(in <-chan *model.Task, stop <-chan struct{}) {
+func DistributeFromChannel(in <-chan *model.Task, ctx context.Context) {
 	for {
 		select {
 		case t, ok := <-in:
@@ -79,7 +80,7 @@ func DistributeFromChannel(in <-chan *model.Task, stop <-chan struct{}) {
 				fmt.Printf("[канальный дистрибьютор] принял %s → %v\n",
 					t.Title(), t.Priority())
 			}
-		case <-stop:
+		case <-ctx.Done():
 			fmt.Println("[канальный дистрибьютор] остановлен")
 			return
 		}
@@ -87,7 +88,7 @@ func DistributeFromChannel(in <-chan *model.Task, stop <-chan struct{}) {
 }
 
 // LogTaskAdditions — каждые 200 мс проверяет, не добавили ли чего нового
-func LogTaskAdditions(interval time.Duration, stop <-chan struct{}) {
+func LogTaskAdditions(interval time.Duration, ctx context.Context) {
     prevLow, prevMed, prevHigh := 0, 0, 0
     ticker := time.NewTicker(interval)
     defer ticker.Stop()
@@ -121,7 +122,7 @@ func LogTaskAdditions(interval time.Duration, stop <-chan struct{}) {
                 prevHigh = curHigh
             }
 
-        case <-stop:
+        case <-ctx.Done():
             if DebugMode {
                 fmt.Println("[логгер] остановлен")
             }
