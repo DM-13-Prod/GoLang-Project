@@ -3,6 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"context"
+	"os/signal"
+	"sync"
+	"syscall"
 	"os"
 	"strconv"
 	"strings"
@@ -28,15 +32,41 @@ func main() {
 		os.Exit(1)
 	}
 
-	stop := make(chan struct{})
-	    // Старый авто-дистрибьютор
-    go service.DistributeNewTasksPeriodically(10*time.Second, stop)
+	ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 
-    // Новый конкурентный набор
-    ch := make(chan *model.Task, 10)
-    go service.GenerateTasks(ch, 5*time.Second, stop)
-    go service.DistributeFromChannel(ch, stop)
-    go service.LogTaskAdditions(200*time.Millisecond, stop)
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			<-sigCh
+			fmt.Println("\nПолучен сигнал завершения, останавливаем сервис...")
+			cancel()
+		}()
+
+		var wg sync.WaitGroup
+		wg.Add(4)
+
+		// Старый авто-дистрибьютор
+		go func() {
+			defer wg.Done()
+			service.DistributeNewTasksPeriodically(10*time.Second, ctx)
+		}()
+
+		// Новый конкурентный набор
+		ch := make(chan *model.Task, 10)
+
+		go func() {
+			defer wg.Done()
+			service.GenerateTasks(ch, 5*time.Second, ctx)
+		}()
+		go func() {
+			defer wg.Done()
+			service.DistributeFromChannel(ch, ctx)
+		}()
+		go func() {
+			defer wg.Done()
+			service.LogTaskAdditions(200*time.Millisecond, ctx)
+		}()
 
 	in := bufio.NewScanner(os.Stdin)
 
@@ -88,8 +118,9 @@ func main() {
 		case "8":
 			handleDelete(in, svc)
 		case "9":
-			fmt.Println("Пока!")
-			close(stop)
+			cancel()
+			wg.Wait()
+			fmt.Println("Все горутины завершены. Пока!")
 			return
 		case "10":
 			fmt.Print("Перенумеровать все ID в 1..N? (y/N): ")
