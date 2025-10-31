@@ -22,7 +22,6 @@ import (
 
 	"todo/internal/model"
 	"todo/internal/service"
-	"todo/internal/storage"
 	"todo/internal/repository"
 	"todo/internal/web"
 	"github.com/joho/godotenv"
@@ -38,7 +37,7 @@ func main() {
 	}
 
 
-	svc, err := service.New(storage.NewJSONStore(storePath))
+	svc, err := service.New(repository.NewJSONStore(storePath))
 	if err != nil {
 		fmt.Println("init error:", err)
 		os.Exit(1)

@@ -6,16 +6,16 @@ import (
 	"time"
 
 	"todo/internal/model"
-	"todo/internal/storage"
+	"todo/internal/repository"
 )
 
 type Service struct {
-	store  *storage.JSONStore
+	store  *repository.JSONStore
 	tasks  map[model.ID]*model.Task
 	nextID model.ID
 }
 
-func New(store *storage.JSONStore) (*Service, error) {
+func New(store *repository.JSONStore) (*Service, error) {
 	s := &Service{
 		store: store,
 		tasks: make(map[model.ID]*model.Task),
