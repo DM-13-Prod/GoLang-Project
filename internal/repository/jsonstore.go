@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"encoding/json"
@@ -10,14 +10,17 @@ import (
 	"todo/internal/model"
 )
 
+// JSONStore — файловое JSON‑хранилище для задач.
 type JSONStore struct {
 	Path string
 }
 
+// NewJSONStore создаёт новое хранилище по указанному пути.
 func NewJSONStore(path string) *JSONStore {
 	return &JSONStore{Path: path}
 }
 
+// Load загружает DTO‑представления задач из JSON‑файла.
 func (s *JSONStore) Load() ([]model.TaskDTO, error) {
 	if s.Path == "" {
 		return nil, errors.New("empty store path")
@@ -42,6 +45,7 @@ func (s *JSONStore) Load() ([]model.TaskDTO, error) {
 	return items, nil
 }
 
+// Save сохраняет DTO‑представления задач в JSON‑файл.
 func (s *JSONStore) Save(items []model.TaskDTO) error {
 	if s.Path == "" {
 		return errors.New("empty store path")
