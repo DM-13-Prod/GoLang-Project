@@ -1,3 +1,11 @@
+// @title TODO API
+// @version 1.0
+// @description Simple task manager API example with JWT authorization
+// @BasePath /api
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 package main
 
 import (
@@ -12,13 +20,17 @@ import (
 	"strings"
 	"time"
 
-	"cmd/internal/model"
-	"cmd/internal/service"
-	"cmd/internal/storage"
-	"cmd/internal/repository"
+	"todo/internal/model"
+	"todo/internal/service"
+	"todo/internal/storage"
+	"todo/internal/repository"
+	"todo/internal/web"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	 _ = godotenv.Load()
+
 	// Путь к JSON-файлу где всё хранится.
 	storePath := os.Getenv("TASKS_FILE")
 	if storePath == "" {
@@ -34,6 +46,17 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+
+		
+	go func() {
+	webServer := web.New(svc)
+	if err := webServer.Start(8080); err != nil {
+		fmt.Println("web server error:", err)
+		cancel()
+	}
+}()
+time.Sleep(100 * time.Millisecond) // Даём возможность серверу загрузиться первым, для ожидаемого результата
 
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)

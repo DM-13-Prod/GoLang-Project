@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"cmd/internal/model"
-	"cmd/internal/storage"
+	"todo/internal/model"
+	"todo/internal/storage"
 )
 
 type Service struct {

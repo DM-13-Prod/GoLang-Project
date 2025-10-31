@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"cmd/internal/model"
+	"todo/internal/model"
 )
 
 type JSONStore struct {

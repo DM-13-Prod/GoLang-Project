@@ -1,9 +1,9 @@
 package service
 
 import (
-	"cmd/internal/model"
+	"todo/internal/model"
 	"context"
-	"cmd/internal/repository"
+	"todo/internal/repository"
 	"fmt"
 	"math/rand"
 	"time"
