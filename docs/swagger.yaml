@@ -1,0 +1,282 @@
+basePath: /api
+definitions:
+  model.Priority:
+    enum:
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - PriorityLow
+    - PriorityMedium
+    - PriorityHigh
+  model.Status:
+    enum:
+    - new
+    - in_progress
+    - done
+    - paused
+    - canceled
+    type: string
+    x-enum-varnames:
+    - StatusNew
+    - StatusInProgress
+    - StatusDone
+    - StatusPaused
+    - StatusCanceled
+  model.TaskDTO:
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      due_at:
+        type: string
+      id:
+        type: integer
+      priority:
+        $ref: '#/definitions/model.Priority'
+      status:
+        $ref: '#/definitions/model.Status'
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  web.LoginRequest:
+    properties:
+      login:
+        type: string
+      password:
+        type: string
+    type: object
+  web.TaskCreateRequest:
+    properties:
+      description:
+        type: string
+      due_at:
+        type: string
+      priority:
+        type: integer
+      title:
+        type: string
+    type: object
+  web.TaskUpdateRequest:
+    properties:
+      description:
+        type: string
+      due_at:
+        type: string
+      priority:
+        type: integer
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Simple task manager API example with JWT authorization
+  title: TODO API
+  version: "1.0"
+paths:
+  /item:
+    post:
+      consumes:
+      - application/json
+      description: Creates new task with optional due date
+      parameters:
+      - description: Task data
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/web.TaskCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Created task ID
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid json
+          schema:
+            type: string
+        "500":
+          description: server error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create task
+      tags:
+      - tasks
+  /item/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Get, update or delete single task
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/web.TaskUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TaskDTO'
+        "400":
+          description: bad id
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Task by ID
+      tags:
+      - tasks
+    get:
+      consumes:
+      - application/json
+      description: Get, update or delete single task
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/web.TaskUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TaskDTO'
+        "400":
+          description: bad id
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Task by ID
+      tags:
+      - tasks
+    put:
+      consumes:
+      - application/json
+      description: Get, update or delete single task
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/web.TaskUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TaskDTO'
+        "400":
+          description: bad id
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Task by ID
+      tags:
+      - tasks
+  /items:
+    get:
+      description: Returns all tasks
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.TaskDTO'
+            type: array
+      summary: List tasks
+      tags:
+      - tasks
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates user and returns JWT
+      parameters:
+      - description: User credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/web.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: token
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: invalid json
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+      summary: User login
+      tags:
+      - auth
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
