@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // internal/service/ports.go
 package service
 
@@ -8,11 +9,25 @@ import (
 	"todo/internal/model"
 )
 
+=======
+package service
+
+import (
+	"time"               // <-- вот этого не хватало
+	"todo/internal/model"
+)
+// Store — абстракция хранилища для задач.
+// Специально оставляем DTO, чтобы адаптер JSON был тонким.
+>>>>>>> f9bf5441eb23e7713a5542af57179cdab20d6b50
 type Store interface {
 	Load() ([]model.TaskDTO, error)
 	Save([]model.TaskDTO) error
 }
 
+<<<<<<< HEAD
+=======
+// TaskUseCase — контракт бизнес-логики для веба/гRPC.
+>>>>>>> f9bf5441eb23e7713a5542af57179cdab20d6b50
 type TaskUseCase interface {
 	Add(title, desc string, p model.Priority, due *time.Time) (model.ID, error)
 	RenumberIDs() error
@@ -24,6 +39,7 @@ type TaskUseCase interface {
 	SetDue(id model.ID, due time.Time) error
 	ClearDue(id model.ID) error
 	Delete(id model.ID) error
+<<<<<<< HEAD
 }
 
 // Событие аудита для Redis
@@ -41,3 +57,6 @@ type AuditLogger interface {
 
 // Глобально настраиваемый логгер (опционально)
 var Logger AuditLogger
+=======
+}
+>>>>>>> f9bf5441eb23e7713a5542af57179cdab20d6b50
