@@ -9,22 +9,21 @@ import (
 )
 
 type Server struct {
-	svc *service.Service
+	svc service.TaskUseCase
 }
 
-func New(svc *service.Service) *Server {
-	return &Server{svc: svc}
+func New(uc service.TaskUseCase) *Server {
+	return &Server{svc: uc}
 }
 
 func (s *Server) Start(port int) error {
 	mux := http.NewServeMux()
 
-	// Пути api
 	mux.HandleFunc("/api/login", s.handleLogin)
 	mux.HandleFunc("/api/item", s.handleCreateItem)        // POST
 	mux.HandleFunc("/api/items", s.handleListItems)        // GET all
 	mux.HandleFunc("/api/item/", s.handleItemByID)         // GET, PUT, DELETE (/api/item/{id})
-	 mux.Handle("/swagger/", httpSwagger.WrapHandler)
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	addr := fmt.Sprintf(":%d", port)
 	fmt.Println("[Web] Веб сервер стартовал на ", addr)
