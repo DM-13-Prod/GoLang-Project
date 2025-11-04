@@ -23,6 +23,7 @@ func (s *Server) Start(port int) error {
 	mux.HandleFunc("/api/item", s.handleCreateItem)        // POST
 	mux.HandleFunc("/api/items", s.handleListItems)        // GET all
 	mux.HandleFunc("/api/item/", s.handleItemByID)         // GET, PUT, DELETE (/api/item/{id})
+	
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 
 	addr := fmt.Sprintf(":%d", port)

@@ -1,12 +1,26 @@
 package service
 
 import (
+	"context"
 	"sort"
 	"strconv"
 	"time"
 
 	"todo/internal/model"
 )
+
+func logEvent(op string, id model.ID, before, after *model.TaskDTO) {
+	if Logger == nil {
+		return
+	}
+	_ = Logger.LogEvent(context.Background(), Event{
+		Op:     op,
+		TaskID: id,
+		At:     time.Now(),
+		Before: before,
+		After:  after,
+	})
+}
 
 type Service struct {
 	store  Store
@@ -72,7 +86,12 @@ func (s *Service) Add(title, desc string, p model.Priority, due *time.Time) (mod
 	t.SetID(s.nextID)
 	s.tasks[t.ID()] = t
 	s.nextID++
-	return t.ID(), s.persist()
+	if err := s.persist(); err != nil {
+		return 0, err
+	}
+	after := t.ToDTO()
+	logEvent("add", t.ID(), nil, &after)
+	return t.ID(), nil
 }
 
 // RenumberIDs — перенумеровывает все задачи в порядке CreatedAt: 1..N
@@ -87,7 +106,11 @@ func (s *Service) RenumberIDs() error {
 	}
 	s.tasks = newMap
 	s.nextID = id
-	return s.persist()
+	if err := s.persist(); err != nil {
+		return err
+	}
+	logEvent("renumber_ids", 0, nil, nil)
+	return nil
 }
 
 func (s *Service) List(filter *model.Status) []*model.Task {
@@ -109,10 +132,16 @@ func (s *Service) UpdateTitle(id model.ID, title string) error {
 	if !ok {
 		return errNotFound(id)
 	}
+	before := t.ToDTO()
 	if err := t.SetTitle(title); err != nil {
 		return err
 	}
-	return s.persist()
+	if err := s.persist(); err != nil {
+		return err
+	}
+	after := t.ToDTO()
+	logEvent("update_title", id, &before, &after)
+	return nil
 }
 
 func (s *Service) UpdateDesc(id model.ID, desc string) error {
@@ -120,8 +149,14 @@ func (s *Service) UpdateDesc(id model.ID, desc string) error {
 	if !ok {
 		return errNotFound(id)
 	}
+	before := t.ToDTO()
 	t.SetDescription(desc)
-	return s.persist()
+	if err := s.persist(); err != nil {
+		return err
+	}
+	after := t.ToDTO()
+	logEvent("update_desc", id, &before, &after)
+	return nil
 }
 
 func (s *Service) SetStatus(id model.ID, st model.Status) error {
@@ -129,10 +164,16 @@ func (s *Service) SetStatus(id model.ID, st model.Status) error {
 	if !ok {
 		return errNotFound(id)
 	}
+	before := t.ToDTO()
 	if err := t.SetStatus(st); err != nil {
 		return err
 	}
-	return s.persist()
+	if err := s.persist(); err != nil {
+		return err
+	}
+	after := t.ToDTO()
+	logEvent("set_status", id, &before, &after)
+	return nil
 }
 
 func (s *Service) SetPriority(id model.ID, p model.Priority) error {
@@ -140,10 +181,16 @@ func (s *Service) SetPriority(id model.ID, p model.Priority) error {
 	if !ok {
 		return errNotFound(id)
 	}
+	before := t.ToDTO()
 	if err := t.SetPriority(p); err != nil {
 		return err
 	}
-	return s.persist()
+	if err := s.persist(); err != nil {
+		return err
+	}
+	after := t.ToDTO()
+	logEvent("set_priority", id, &before, &after)
+	return nil
 }
 
 func (s *Service) SetDue(id model.ID, due time.Time) error {
@@ -151,8 +198,14 @@ func (s *Service) SetDue(id model.ID, due time.Time) error {
 	if !ok {
 		return errNotFound(id)
 	}
+	before := t.ToDTO()
 	t.SetDueAt(due)
-	return s.persist()
+	if err := s.persist(); err != nil {
+		return err
+	}
+	after := t.ToDTO()
+	logEvent("set_due", id, &before, &after)
+	return nil
 }
 
 func (s *Service) ClearDue(id model.ID) error {
@@ -160,16 +213,28 @@ func (s *Service) ClearDue(id model.ID) error {
 	if !ok {
 		return errNotFound(id)
 	}
+	before := t.ToDTO()
 	t.ClearDue()
-	return s.persist()
+	if err := s.persist(); err != nil {
+		return err
+	}
+	after := t.ToDTO()
+	logEvent("clear_due", id, &before, &after)
+	return nil
 }
 
 func (s *Service) Delete(id model.ID) error {
-	if _, ok := s.tasks[id]; !ok {
+	t, ok := s.tasks[id]
+	if !ok {
 		return errNotFound(id)
 	}
+	before := t.ToDTO()
 	delete(s.tasks, id)
-	return s.persist()
+	if err := s.persist(); err != nil {
+		return err
+	}
+	logEvent("delete", id, &before, nil)
+	return nil
 }
 
 type notFound struct{ id model.ID }

@@ -1,16 +1,18 @@
+// internal/service/ports.go
 package service
 
 import (
-	"time" 
+	"context"
+	"time"
+
 	"todo/internal/model"
 )
-// Специально оставляем DTO, чтобы адаптер JSON был тонким.
+
 type Store interface {
 	Load() ([]model.TaskDTO, error)
 	Save([]model.TaskDTO) error
 }
 
-// TaskUseCase — контракт бизнес-логики для веба/гРПС.
 type TaskUseCase interface {
 	Add(title, desc string, p model.Priority, due *time.Time) (model.ID, error)
 	RenumberIDs() error
@@ -23,3 +25,19 @@ type TaskUseCase interface {
 	ClearDue(id model.ID) error
 	Delete(id model.ID) error
 }
+
+// Событие аудита для Redis
+type Event struct {
+	Op     string         `json:"op"`
+	TaskID model.ID       `json:"task_id,omitempty"`
+	At     time.Time      `json:"at"`
+	Before *model.TaskDTO `json:"before,omitempty"`
+	After  *model.TaskDTO `json:"after,omitempty"`
+}
+
+type AuditLogger interface {
+	LogEvent(ctx context.Context, e Event) error
+}
+
+// Глобально настраиваемый логгер (опционально)
+var Logger AuditLogger
