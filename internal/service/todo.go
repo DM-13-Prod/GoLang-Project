@@ -6,16 +6,15 @@ import (
 	"time"
 
 	"todo/internal/model"
-	"todo/internal/repository"
 )
 
 type Service struct {
-	store  *repository.JSONStore
+	store  Store
 	tasks  map[model.ID]*model.Task
 	nextID model.ID
 }
 
-func New(store *repository.JSONStore) (*Service, error) {
+func New(store Store) (*Service, error) {
 	s := &Service{
 		store: store,
 		tasks: make(map[model.ID]*model.Task),
@@ -178,3 +177,6 @@ type notFound struct{ id model.ID }
 func (e notFound) Error() string { return "task not found: " + strconv.FormatInt(int64(e.id), 10) }
 
 func errNotFound(id model.ID) error { return notFound{id: id} }
+
+// Гарантируем, что Service реализует TaskUseCase
+var _ TaskUseCase = (*Service)(nil)

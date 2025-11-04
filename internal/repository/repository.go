@@ -19,9 +19,9 @@ var (
 	muLow, muMed, muHigh sync.Mutex //Мьютексы
 
 	// Пути к файлам, где будем сохранять распределённые задачи
-	lowFile    = "data/low_tasks.json"
-	mediumFile = "data/medium_tasks.json"
-	highFile   = "data/high_tasks.json"
+	lowFile = filepath.Join("cmd", "data", "low_tasks.json")
+	mediumFile = filepath.Join("cmd", "data", "medium_tasks.json")
+	highFile = filepath.Join("cmd", "data", "high_tasks.json")
 )
 
 // init — при старте вытаскивает данные с диска, если они у нас уже были.
