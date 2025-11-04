@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package todo;
+
+option go_package = "todo/internal/grpcapi;grpcapi";
+
+// Базовая структура задачи
+message Task {
+  int64 id = 1;
+  string title = 2;
+  string description = 3;
+  string status = 4;
+  int32 priority = 5;
+  string due_at = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  string completed_at = 9;
+}
+
+// Запросы/ответы
+message TaskID {
+  int64 id = 1;
+}
+
+message CreateTaskRequest {
+  string title = 1;
+  string description = 2;
+  int32 priority = 3;
+  string due_at = 4; // optional (format YYYY-MM-DD)
+}
+
+message CreateTaskResponse {
+  int64 id = 1;
+}
+
+message UpdateTaskRequest {
+  int64 id = 1;
+  string title = 2;
+  string description = 3;
+  string status = 4;
+  int32 priority = 5;
+  string due_at = 6;
+}
+
+message Empty {}
+
+message TaskList {
+  repeated Task items = 1;
+}
+
+// gRPC‑сервис с 5‑ю унарными методами
+service TodoService {
+  rpc Create (CreateTaskRequest) returns (CreateTaskResponse);
+  rpc Update (UpdateTaskRequest) returns (Task);
+  rpc Delete (TaskID) returns (Empty);
+  rpc Get (TaskID) returns (Task);
+  rpc List (Empty) returns (TaskList);
+}
