@@ -23,86 +23,119 @@ import (
 	"todo/internal/model"
 	"todo/internal/service"
 	"todo/internal/repository"
+	"todo/internal/audit"
 	"todo/internal/web"
 	"github.com/joho/godotenv"
 )
 
 func main() {
-	 _ = godotenv.Load()
+	_ = godotenv.Load()
 
-	// Путь к JSON-файлу где всё хранится.
-	storePath := os.Getenv("TASKS_FILE")
-	if storePath == "" {
-		storePath = "data/tasks.json"
+	// PostgreSQL
+	pgConn := os.Getenv("POSTGRES_CONN")
+	if pgConn == "" {
+		pgConn = "postgres://todo_user:todo_pass@127.0.0.1:5432/todo_db?sslmode=disable"
+	}
+	pgStore, err := repository.NewPostgresStore(pgConn)
+	if err == nil {
+		svc, err := service.New(pgStore)
+		if err == nil {
+			fmt.Println("✓ PostgreSQL в работе:", pgConn)
+			runApp(svc)
+			return
+		}
+	}
+	fmt.Println("⚠ PostgreSQL connection failed:", err)
+
+	// MongoDB
+	mongoURI := "mongodb://127.0.0.1:27017"
+	mongoStore, err := repository.NewMongoStore(mongoURI, "todo_db", "tasks")
+	if err == nil {
+		fmt.Println("✓ MongoDB подключена:", mongoURI)
+		redisLogger := audit.NewRedisLogger("127.0.0.1:6379", "", 0, 24*time.Hour, "audit")
+		service.Logger = redisLogger
+		fmt.Println("✓ Redis подключен: 127.0.0.1:6379 (TTL: 24h)")
+
+		svc, err := service.New(mongoStore)
+		if err == nil {
+			runApp(svc)
+			return
+		}
 	}
 
+	// Откат к JSON
+	fmt.Println("⚠ MongoDB connection error:", err)
+	fmt.Println("⚠ Fallback к JSON‑хранилищу…")
 
+	storePath := "cmd/data/tasks.json"
 	svc, err := service.New(repository.NewJSONStore(storePath))
 	if err != nil {
 		fmt.Println("init error:", err)
 		os.Exit(1)
 	}
+	fmt.Println("✓ Использую JSON‑хранилище:", storePath)
+	runApp(svc)
+}
+	
 
+func runApp(svc *service.Service) {
 	ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+	defer cancel()
 
-
-		
 	go func() {
-	webServer := web.New(svc)
-	if err := webServer.Start(8080); err != nil {
-		fmt.Println("web server error:", err)
-		cancel()
-	}
-}()
-time.Sleep(100 * time.Millisecond) // Даём возможность серверу загрузиться первым, для ожидаемого результата
-
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-		go func() {
-			<-sigCh
-			fmt.Println("\nПолучен сигнал завершения, останавливаем сервис...")
+		webServer := web.New(svc)
+		if err := webServer.Start(8080); err != nil {
+			fmt.Println("web server error:", err)
 			cancel()
-		}()
+		}
+	}()
+	time.Sleep(100 * time.Millisecond) // Даём возможность серверу загрузиться первым, для ожидаемого результата
 
-		var wg sync.WaitGroup
-		wg.Add(4)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		fmt.Println("\nПолучен сигнал завершения, останавливаем сервис...")
+		cancel()
+	}()
 
-		// Старый авто-дистрибьютор
-		go func() {
-			defer wg.Done()
-			service.DistributeNewTasksPeriodically(10*time.Second, ctx)
-		}()
+	var wg sync.WaitGroup
+	wg.Add(4)
 
-		// Новый конкурентный набор
-		ch := make(chan *model.Task, 10)
+	// Старый авто-дистрибьютор
+	go func() {
+		defer wg.Done()
+		service.DistributeNewTasksPeriodically(10*time.Second, ctx)
+	}()
 
-		go func() {
-			defer wg.Done()
-			service.GenerateTasks(ch, 5*time.Second, ctx)
-		}()
-		go func() {
-			defer wg.Done()
-			service.DistributeFromChannel(ch, ctx)
-		}()
-		go func() {
-			defer wg.Done()
-			service.LogTaskAdditions(200*time.Millisecond, ctx)
-		}()
+	// Новый конкурентный набор
+	ch := make(chan *model.Task, 10)
+
+	go func() {
+		defer wg.Done()
+		service.GenerateTasks(ch, 5*time.Second, ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		service.DistributeFromChannel(ch, ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		service.LogTaskAdditions(200*time.Millisecond, ctx)
+	}()
 
 	in := bufio.NewScanner(os.Stdin)
 
 	for {
-
-				//Правильно завершаем, если контекст отменён
-        select {
-        case <-ctx.Done():
-            fmt.Println("\nОсновной цикл: получен сигнал отмены, завершаем работу...")
-            wg.Wait()
-            fmt.Println("Все горутины завершены. Пока!")
-            return
-        default:
-        }
+		// Правильно завершаем, если контекст отменён
+		select {
+		case <-ctx.Done():
+			fmt.Println("\nОсновной цикл: получен сигнал отмены, завершаем работу...")
+			wg.Wait()
+			fmt.Println("Все горутины завершены. Пока!")
+			return
+		default:
+		}
 
 		fmt.Println()
 		fmt.Println("== TODO / Задачник ==")

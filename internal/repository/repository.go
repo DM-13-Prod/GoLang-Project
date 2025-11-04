@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"context"
 )
 
 // Тут просто хранилища задач по приоритету.
@@ -29,6 +30,30 @@ func init() {
 	LowPriorityTasks = loadPriorityTasks(lowFile)
 	MediumPriorityTasks = loadPriorityTasks(mediumFile)
 	HighPriorityTasks = loadPriorityTasks(highFile)
+}
+
+func (s *PostgresStore) UpdateTaskAndLog(ctx context.Context, id model.ID, status model.Status) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE tasks SET status=$1, updated_at=now() WHERE id=$2
+	`, status, id)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO audit_logs (task_id, operation) VALUES ($1, $2)
+	`, id, "update_status")
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 // Distribute — раскидывает задачу по нужному списку, в зависимости от приоритета
